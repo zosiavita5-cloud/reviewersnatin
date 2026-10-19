@@ -1,4 +1,3 @@
-
 <?php
 
 $host = 'sql200.infinityfree.com';
@@ -22,4 +21,3 @@ try {
     http_response_code(500);
     exit('Database connection failed. Please check the hosting database settings.');
 }
-Database connection failed. Check db.php settings.
