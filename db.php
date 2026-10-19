@@ -1,3 +1,4 @@
+
 <?php
 
 $host = 'sql203.infinityfree.com';
@@ -16,9 +17,9 @@ try {
             PDO::ATTR_EMULATE_PREPARES => false,
         ]
     );
-    echo "<h1>Yey! Connected successfully sa database! 💚</h1>";
 } catch (PDOException $e) {
-    // Ipapalabas natin ang eksaktong error kung bakit nag-fail
-    echo "<h1>Error Details:</h1>";
-    echo "<pre>" . $e->getMessage() . "</pre>";
+    error_log('GreenReview database connection error: ' . $e->getMessage());
+    http_response_code(500);
+    exit('Database connection failed. Please check the hosting database settings.');
 }
+Database connection failed. Check db.php settings.
