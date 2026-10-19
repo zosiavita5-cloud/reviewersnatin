@@ -16,9 +16,8 @@ try {
             PDO::ATTR_EMULATE_PREPARES => false,
         ]
     );
-    // Kung walang error, testing kung nakakonekta
-    // echo "Connected successfully!";
 } catch (PDOException $e) {
-    // Ipapakita muna natin ang totoong dahilan kung bakit nag-fail
+    // Kung sakaling magka-error ulit, ipapakita nito ang eksaktong dahilan
+    http_response_code(500);
     exit('Database connection failed: ' . $e->getMessage());
 }
