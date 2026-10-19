@@ -4,9 +4,46 @@ require_once __DIR__ . '/includes/auth.php';
 
 $search = trim($_GET['q'] ?? '');
 
-// Show only approved reviewers that are either:
-// 1. Not assigned to a folder (public library), or
-// 2. Inside a folder marked public and owned by the uploader.
+/*
+|--------------------------------------------------------------------------
+| Fetch public reviewer folders
+|--------------------------------------------------------------------------
+| Public folders appear even if they do not contain reviewers yet.
+| Private folders are never displayed on the public homepage.
+*/
+$folderSql = "
+    SELECT
+        f.id,
+        f.folder_name,
+        f.created_at,
+        u.name AS uploader,
+        COUNT(
+            CASE WHEN r.status = 'approved' THEN r.id END
+        ) AS reviewer_count
+    FROM reviewer_folders f
+    JOIN users u ON u.id = f.user_id
+    LEFT JOIN reviewers r
+        ON r.folder_id = f.id
+        AND r.user_id = f.user_id
+    WHERE f.visibility = 'public'
+    GROUP BY
+        f.id,
+        f.folder_name,
+        f.created_at,
+        u.name
+    ORDER BY f.created_at DESC
+";
+
+$folderStmt = $pdo->query($folderSql);
+$publicFolders = $folderStmt->fetchAll();
+
+/*
+|--------------------------------------------------------------------------
+| Fetch public approved reviewers
+|--------------------------------------------------------------------------
+| Reviewers without a folder are part of the public library.
+| Reviewers inside a folder appear only when that folder is public.
+*/
 $sql = "
     SELECT
         r.id,
@@ -53,6 +90,45 @@ $reviewers = $stmt->fetchAll();
 
     <title>GreenReview | Public Reviewer Library</title>
     <link rel="stylesheet" href="style.css">
+
+    <style>
+        .public-folders {
+            margin-bottom: 48px;
+        }
+
+        .folder-card {
+            display: flex;
+            flex-direction: column;
+        }
+
+        .folder-card .btn-card {
+            margin-top: auto;
+        }
+
+        .folder-description {
+            color: #718071;
+            font-size: 0.94rem;
+            line-height: 1.6;
+            margin: 8px 0 18px;
+        }
+
+        .folder-card .card-meta {
+            margin-bottom: 18px;
+        }
+
+        .section-divider {
+            border: 0;
+            border-top: 1px solid #e5ece3;
+            margin: 36px 0;
+        }
+
+        @media (max-width: 600px) {
+            .section-heading {
+                gap: 16px;
+                align-items: flex-start;
+            }
+        }
+    </style>
 </head>
 <body>
 
@@ -68,22 +144,35 @@ $reviewers = $stmt->fetchAll();
                 <a href="folders.php">📁 My Uploads</a>
 
                 <span class="welcome-user">
-                    Hi, <?= e($_SESSION['user_name'] ?? $_SESSION['name'] ?? 'Student') ?>!
+                    Hi, <?= e(
+                        $_SESSION['user_name']
+                        ?? $_SESSION['name']
+                        ?? 'Student'
+                    ) ?>!
                 </span>
 
-                <form action="logout.php" method="post" class="inline-form">
+                <form
+                    action="logout.php"
+                    method="post"
+                    class="inline-form"
+                >
                     <input
                         type="hidden"
                         name="csrf_token"
                         value="<?= e(csrfToken()) ?>"
                     >
+
                     <button class="nav-logout" type="submit">
                         Log out
                     </button>
                 </form>
             <?php else: ?>
                 <a href="login.php">Log in</a>
-                <a class="btn btn-small btn-primary" href="register.php">
+
+                <a
+                    class="btn btn-small btn-primary"
+                    href="register.php"
+                >
                     Join us ✨
                 </a>
             <?php endif; ?>
@@ -94,7 +183,9 @@ $reviewers = $stmt->fetchAll();
 <main>
     <section class="hero">
         <div class="hero-inner">
-            <span class="hero-pill">✿ LEARN · SHARE · GROW</span>
+            <span class="hero-pill">
+                ✿ LEARN · SHARE · GROW
+            </span>
 
             <h1>
                 Your next exam starts<br>
@@ -106,7 +197,11 @@ $reviewers = $stmt->fetchAll();
                 for students. Find your next study buddy in a file. 🌱
             </p>
 
-            <form class="search-form" method="get" action="index.php">
+            <form
+                class="search-form"
+                method="get"
+                action="index.php"
+            >
                 <span class="search-symbol">⌕</span>
 
                 <input
@@ -132,16 +227,113 @@ $reviewers = $stmt->fetchAll();
     </section>
 
     <section class="page-container">
+
+        <?php if ($search === ''): ?>
+            <!-- PUBLIC REVIEWER FOLDERS -->
+            <section class="public-folders">
+                <div class="section-heading">
+                    <div>
+                        <p class="eyebrow">
+                            ORGANIZED STUDY MATERIALS
+                        </p>
+
+                        <h2>📁 Public Reviewer Folders</h2>
+
+                        <p class="muted">
+                            Browse study materials organized by students.
+                        </p>
+                    </div>
+                </div>
+
+                <?php if (!empty($publicFolders)): ?>
+                    <div class="reviewer-grid">
+                        <?php foreach ($publicFolders as $folder): ?>
+                            <article class="reviewer-card folder-card">
+                                <div class="file-icon">📂</div>
+
+                                <span class="subject-tag">
+                                    PUBLIC FOLDER
+                                </span>
+
+                                <h3>
+                                    <?= e($folder['folder_name']) ?>
+                                </h3>
+
+                                <p class="folder-description">
+                                    Shared by
+                                    <?= e($folder['uploader']) ?>
+                                </p>
+
+                                <div class="card-meta">
+                                    <span>
+                                        📄
+                                        <?= (int)$folder['reviewer_count'] ?>
+                                        reviewer(s)
+                                    </span>
+
+                                    <span>
+                                        <?= e(date(
+                                            'M j, Y',
+                                            strtotime($folder['created_at'])
+                                        )) ?>
+                                    </span>
+                                </div>
+
+                                <a
+                                    class="btn btn-card"
+                                    href="folder.php?id=<?= (int)$folder['id'] ?>"
+                                >
+                                    Open folder →
+                                </a>
+                            </article>
+                        <?php endforeach; ?>
+                    </div>
+                <?php else: ?>
+                    <div class="empty-state">
+                        <div class="empty-symbol">📁</div>
+
+                        <h3>No public folders yet</h3>
+
+                        <p>
+                            Public folders shared by students will appear here.
+                        </p>
+
+                        <?php if (isLoggedIn()): ?>
+                            <a
+                                class="btn btn-primary"
+                                href="folders.php"
+                            >
+                                Manage my folders
+                            </a>
+                        <?php else: ?>
+                            <a
+                                class="btn btn-primary"
+                                href="register.php"
+                            >
+                                Join GreenReview ✨
+                            </a>
+                        <?php endif; ?>
+                    </div>
+                <?php endif; ?>
+            </section>
+
+            <hr class="section-divider">
+        <?php endif; ?>
+
+        <!-- PUBLIC REVIEWER LIBRARY -->
         <div class="section-heading">
             <div>
                 <p class="eyebrow">THE STUDY SHELF</p>
 
                 <h2>
-                    <?= $search !== '' ? 'Search results' : 'Public reviewers' ?>
+                    <?= $search !== ''
+                        ? 'Search results'
+                        : 'Public reviewers' ?>
                 </h2>
 
                 <p class="muted">
                     <?= count($reviewers) ?> reviewer(s) found
+
                     <?php if ($search !== ''): ?>
                         for “<?= e($search) ?>”
                     <?php endif; ?>
@@ -159,7 +351,7 @@ $reviewers = $stmt->fetchAll();
             <?php endif; ?>
         </div>
 
-        <?php if ($reviewers): ?>
+        <?php if (!empty($reviewers)): ?>
             <div class="reviewer-grid">
                 <?php foreach ($reviewers as $reviewer): ?>
                     <?php
@@ -182,14 +374,18 @@ $reviewers = $stmt->fetchAll();
                             <?= e($reviewer['subject']) ?>
                         </span>
 
-                        <h3><?= e($reviewer['title']) ?></h3>
+                        <h3>
+                            <?= e($reviewer['title']) ?>
+                        </h3>
 
                         <p class="file-name">
                             <?= e($fileName) ?>
                         </p>
 
                         <div class="card-meta">
-                            <span>✎ <?= e($reviewer['uploader']) ?></span>
+                            <span>
+                                ✎ <?= e($reviewer['uploader']) ?>
+                            </span>
 
                             <span>
                                 <?= e(date(
@@ -230,6 +426,7 @@ $reviewers = $stmt->fetchAll();
                 <?php endif; ?>
             </div>
         <?php endif; ?>
+
     </section>
 </main>
 
