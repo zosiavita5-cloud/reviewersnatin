@@ -1,8 +1,10 @@
+
 <?php
-$host = '127.0.0.1';
-$dbname = 'greenreview_db';
-$username = 'root';
-$password = '';
+
+$host = 'sql203.infinityfree.com';
+$dbname = 'if0_43203117_reviewernatin';
+$username = 'if0_43203117';
+$password = 'LeiBajande1';
 
 try {
     $pdo = new PDO(
@@ -17,5 +19,5 @@ try {
     );
 } catch (PDOException $e) {
     error_log($e->getMessage());
-    exit('Database connection failed. Check db.php settings.');
+    exit('Database connection failed. Please check the database configuration.');
 }
