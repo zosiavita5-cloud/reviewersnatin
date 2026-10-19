@@ -1,10 +1,10 @@
 
 <?php
 
-$host = 'sql203.infinityfree.com';
-$dbname = 'if0_43203117_reviewernatin';
-$username = 'if0_43203117';
-$password = 'LeiBajande1';
+$host = 'sql200.infinityfree.com';
+$dbname = 'if0_43216648_reviewersnatin';
+$username = 'if0_43216648';
+$password = 'akosilei1';
 
 try {
     $pdo = new PDO(
